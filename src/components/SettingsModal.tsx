@@ -3,6 +3,7 @@ import { X, Shield, Server, Key, Volume2, Save, RefreshCw, LogOut, CheckCircle2,
 import { useLanguage } from '../i18n/LanguageContext';
 import { StrategySettings, DiagnosticsInfo } from '../types';
 import { safeFetchJson } from '../utils/safeFetch';
+import { parsePocketOptionTokenInput } from '../lib/pocketOptionTokenParser';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -64,14 +65,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     }
   }, [isOpen, currentEndpoint, currentSession, currentUid]);
 
-  const detectedMode = useMemo(() => {
-    if (/(?:^|[;&,\s"{])isDemo"?\s*[:=]\s*"?0"?/i.test(session) || /(?:^|[;&,\s"{])is_demo"?\s*[:=]\s*"?0"?/i.test(session)) {
-      return 'REAL';
-    } else if (/(?:^|[;&,\s"{])isDemo"?\s*[:=]\s*"?1"?/i.test(session) || /(?:^|[;&,\s"{])is_demo"?\s*[:=]\s*"?1"?/i.test(session)) {
-      return 'DEMO';
-    }
-    return null;
-  }, [session]);
+  const parsedToken = useMemo(() => parsePocketOptionTokenInput(session, uid), [session, uid]);
+  const detectedMode = parsedToken.payloadDetectedMode;
 
   const handleTestConnection = async () => {
     if (!session || !session.trim()) return;
@@ -86,9 +81,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          sessionToken: session,
+          sessionToken: parsedToken.cleanSession || session,
           endpoint: effectiveEndpoint,
-          uid,
+          uid: uid || (parsedToken.detectedUid ? String(parsedToken.detectedUid) : ''),
           isDemo: false,
           mode: 'REAL',
           timeoutMs: 10000,
@@ -123,25 +118,25 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   const handleSessionChange = (val: string) => {
     setSession(val);
-    const uidMatch =
-      val.match(/"?(?:uid|user_id)"?\s*[:=]\s*"?(\d+)"?/i) ||
-      val.match(/(?:^|[;&,\s])(?:uid|user_id)\s*=\s*"?(\d+)"?/i);
-    if (uidMatch && uidMatch[1] && Number(uidMatch[1]) > 0) {
-      setUid(uidMatch[1]);
+    const parsed = parsePocketOptionTokenInput(val, null);
+    if (parsed.detectedUid && parsed.detectedUid > 0) {
+      setUid(String(parsed.detectedUid));
     }
   };
 
   if (!isOpen) return null;
 
   const handleSave = () => {
+    const cleanSess = parsedToken.cleanSession || session;
+    const cleanUid = uid || (parsedToken.detectedUid ? String(parsedToken.detectedUid) : '');
     if (onSave) {
       if (onSave.length >= 3) {
-        (onSave as any)(endpoint, session, false, strategySettings || ({} as any), uid);
+        (onSave as any)(endpoint, cleanSess, false, strategySettings || ({} as any), cleanUid);
       } else {
         (onSave as any)({
           endpoint,
-          session,
-          uid,
+          session: cleanSess,
+          uid: cleanUid,
           isDemo: false,
           audioEnabled,
         });
@@ -307,12 +302,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   )}
                 </div>
                 <textarea
-                  rows={3}
+                  rows={4}
                   dir="ltr"
+                  spellCheck={false}
+                  autoCapitalize="off"
+                  autoCorrect="off"
                   value={session}
                   onChange={(e) => handleSessionChange(e.target.value)}
-                  placeholder="Paste session token or 42['auth', ...]"
-                  className="w-full py-2.5 px-3.5 sabaa-well rounded-xl text-slate-100 font-mono text-xs focus:outline-none focus:border-amber-400 resize-none text-left"
+                  placeholder='Paste session token or 42["auth",{"session":"...","isDemo":0,"uid":...}]'
+                  className="w-full py-2.5 px-3.5 sabaa-well rounded-xl text-slate-100 font-mono text-xs focus:outline-none focus:border-amber-400 resize-y break-all text-left"
                 />
               </div>
 

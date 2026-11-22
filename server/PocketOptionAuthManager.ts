@@ -35,8 +35,37 @@ export interface AuthValidationResult {
 export class PocketOptionAuthManager {
   public static parse(input: RawAuthInput): ParsedAuthData {
     let raw = (input.sessionToken || input.rawSession || '').trim();
-    // Strip surrounding quotes or backticks
-    raw = raw.replace(/^["'`]|["'`]$/g, '').trim();
+    // Unwrap JSON-stringified or quoted outer wrappers cleanly without harming inner JSON/PHP quotes
+    if (raw.startsWith('"') && raw.endsWith('"') && raw.length >= 2) {
+      try {
+        const unwrapped = JSON.parse(raw);
+        raw = typeof unwrapped === 'string' ? unwrapped.trim() : raw.slice(1, -1).trim();
+      } catch {
+        raw = raw.slice(1, -1).trim();
+      }
+    } else if ((raw.startsWith("'") && raw.endsWith("'")) || (raw.startsWith('`') && raw.endsWith('`'))) {
+      raw = raw.slice(1, -1).trim();
+    }
+
+    if (raw.includes('%22') || raw.includes('%5B') || raw.includes('%7B') || raw.includes('%3A')) {
+      try {
+        raw = decodeURIComponent(raw).trim();
+      } catch {
+        // keep raw
+      }
+    }
+
+    // Handle outer-escaped DevTools copies like 42[\"auth\",{\"session\":...}]
+    if (/^(?:42)?\[\\?"auth\\?"/.test(raw) || /^\\?\{\\?"session/.test(raw)) {
+      try {
+        const candidate = raw.replace(/\\"/g, '"');
+        const testJson = candidate.startsWith('42') ? candidate.slice(2) : candidate;
+        JSON.parse(testJson.replace(/[\r\n]+/g, '').trim());
+        raw = candidate;
+      } catch {
+        // keep raw
+      }
+    }
 
     let session = '';
     let uid = 0;
@@ -44,55 +73,69 @@ export class PocketOptionAuthManager {
     let detectedIsDemo: 0 | 1 | null = null;
     let format: SessionFormatType = 'RAW_SESSION';
 
-    // 1. Try to extract JSON object or array substring if raw contains { ... } or [ ... ]
-    const jsonMatch = raw.match(/(\{[\s\S]*\}|\[[\s\S]*\])/);
-    if (jsonMatch) {
-      try {
-        let jsonStr = jsonMatch[1];
-        if (jsonStr.startsWith('42')) jsonStr = jsonStr.slice(2);
-        const parsed = JSON.parse(jsonStr);
-        const data = Array.isArray(parsed) && parsed.length > 1 && typeof parsed[1] === 'object' ? parsed[1] : parsed;
-        if (data && typeof data === 'object') {
-          format = 'COMPLETE_AUTH_PACKET';
-          if (data.session) {
-            session = String(data.session).trim().replace(/^["'`]|["'`]$/g, '');
+    // 0. If raw is already a standalone PHP serialized SSD string (e.g. a:4:{s:10:"session_id";...}hash), keep it whole!
+    if (/^a:\d+:\{[\s\S]*\}/.test(raw)) {
+      session = raw.includes('\\"') ? raw.replace(/\\"/g, '"') : raw;
+      format = 'RAW_SESSION';
+    } else {
+      // 1. Try to extract JSON object or array substring if raw contains { ... } or [ ... ]
+      const jsonMatch = raw.match(/(\{[\s\S]*\}|\[[\s\S]*\])/);
+      if (jsonMatch) {
+        try {
+          let jsonStr = jsonMatch[1].replace(/[\r\n]+/g, '').trim();
+          if (jsonStr.startsWith('42')) jsonStr = jsonStr.slice(2);
+          const parsed = JSON.parse(jsonStr);
+          const data = Array.isArray(parsed) && parsed.length > 1 && typeof parsed[1] === 'object' ? parsed[1] : parsed;
+          if (data && typeof data === 'object') {
+            format = 'COMPLETE_AUTH_PACKET';
+            if (data.session || data.sessionToken) {
+              session = String(data.session || data.sessionToken).trim();
+            }
+            if (data.uid !== undefined && data.uid !== null) {
+              const numUid = Number(data.uid);
+              if (!isNaN(numUid) && numUid > 0) uid = numUid;
+            }
+            if (data.platform !== undefined) {
+              const numPlatform = Number(data.platform);
+              if (!isNaN(numPlatform)) platform = numPlatform;
+            }
+            if (data.isDemo !== undefined && data.isDemo !== null) {
+              detectedIsDemo = (data.isDemo === 1 || data.isDemo === '1' || data.isDemo === true) ? 1 : 0;
+            }
           }
-          if (data.uid !== undefined && data.uid !== null) {
-            const numUid = Number(data.uid);
-            if (!isNaN(numUid) && numUid > 0) uid = numUid;
-          }
-          if (data.platform !== undefined) {
-            const numPlatform = Number(data.platform);
-            if (!isNaN(numPlatform)) platform = numPlatform;
-          }
-          if (data.isDemo !== undefined && data.isDemo !== null) {
-            detectedIsDemo = (data.isDemo === 1 || data.isDemo === '1' || data.isDemo === true) ? 1 : 0;
-          }
+        } catch {
+          // Fall through to escaped-JSON regex extraction below if JSON was malformed or partial
         }
-      } catch {
-        // Fall through to regex extraction below if JSON was malformed or partial
       }
     }
 
-    // 2. Robust regex extraction for session token (handles inverted DevTools copies like `auth", "]42{"session":"..."}`)
+    // 2. Robust regex extraction for session token (supports escaped quotes inside JSON strings e.g. PHP serialized SSD)
     if (!session || session.length < 8) {
-      const sessionRegex = /"?session"?\s*[:=]\s*["']?([a-zA-Z0-9_\.-]{8,128})["']?/i;
-      const sMatch = raw.match(sessionRegex);
-      if (sMatch && sMatch[1]) {
-        session = sMatch[1].trim();
+      const escapedJsonSess = raw.match(/"session(?:Token)?"\s*:\s*"((?:[^"\\]|\\.)+)"/i);
+      if (escapedJsonSess && escapedJsonSess[1]) {
+        try {
+          session = JSON.parse(`"${escapedJsonSess[1]}"`).trim();
+        } catch {
+          session = escapedJsonSess[1].replace(/\\"/g, '"').replace(/\\\\/g, '\\').trim();
+        }
         format = 'COMPLETE_AUTH_PACKET';
       } else {
-        const cookieMatch = raw.match(/(?:SSID|PHPSESSID|auth|token)\s*=\s*["']?([a-zA-Z0-9_\.-]{8,128})["']?/i);
-        if (cookieMatch && cookieMatch[1]) {
-          session = cookieMatch[1].trim();
-          format = 'RAW_SESSION';
-        } else if (!raw.includes('{') && !raw.includes(':') && !raw.includes('[')) {
-          // It's a plain raw token string
-          session = raw.replace(/^(?:SSID|session|auth|PHPSESSID)=/i, '').replace(/[;\s]+$/, '').trim();
-          format = 'RAW_SESSION';
+        const sessionRegex = /"?session"?\s*[:=]\s*["']?([a-zA-Z0-9_\.-]{8,128})["']?/i;
+        const sMatch = raw.match(sessionRegex);
+        if (sMatch && sMatch[1]) {
+          session = sMatch[1].trim();
+          format = 'COMPLETE_AUTH_PACKET';
         } else {
-          // Last resort fallback: clean residual quotes and punctuation
-          session = raw.replace(/^(?:SSID|session|auth|PHPSESSID)=/i, '').replace(/[;\s]+$/, '').replace(/^["'`]|["'`]$/g, '').trim();
+          const cookieMatch = raw.match(/(?:SSID|PHPSESSID|auth|token)\s*=\s*["']?([^;\s"']{8,})["']?/i);
+          if (cookieMatch && cookieMatch[1]) {
+            session = cookieMatch[1].trim();
+            format = 'RAW_SESSION';
+          } else if (!raw.includes('{') && !raw.includes(':') && !raw.includes('[')) {
+            session = raw.replace(/^(?:SSID|session|auth|PHPSESSID)=/i, '').replace(/[;\s]+$/, '').trim();
+            format = 'RAW_SESSION';
+          } else {
+            session = raw.replace(/^(?:SSID|session|auth|PHPSESSID)=/i, '').replace(/[;\s]+$/, '').trim();
+          }
         }
       }
     }
@@ -124,8 +167,18 @@ export class PocketOptionAuthManager {
       }
     }
 
-    // Clean any residual punctuation or trailing garbage from session
-    session = session.replace(/^["'`]|["'`]$/g, '').trim();
+    // Clean any outer residual quotes without stripping valid PHP-serialized session structure
+    if (
+      (session.startsWith('"') && session.endsWith('"')) ||
+      (session.startsWith("'") && session.endsWith("'")) ||
+      (session.startsWith('`') && session.endsWith('`'))
+    ) {
+      session = session.slice(1, -1).trim();
+    }
+    session = session.trim();
+    if (/^a:\d+:\{[\s\S]*\}/.test(session) && session.includes('\\"')) {
+      session = session.replace(/\\"/g, '"');
+    }
 
     // Priority: explicit input.uid overrides parsed uid
     if (input.uid !== undefined && input.uid !== null && String(input.uid).trim() !== '') {

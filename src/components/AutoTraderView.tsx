@@ -33,7 +33,6 @@ import {
 } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';
 import { TradeDetailModal, DetailedTradeRecord } from './TradeDetailModal';
-import sabaaQuantEngineImg from '../assets/images/sabaa_quant_engine_1795220178269.jpg';
 import {
   TIMEZONE_OPTIONS,
   normalizeTimezoneValue,
@@ -435,7 +434,6 @@ export const AutoTraderView: React.FC<AutoTraderViewProps> = ({
   const [confirmClearTrades, setConfirmClearTrades] = useState<boolean>(false);
   const [clearingLogs, setClearingLogs] = useState<boolean>(false);
   const [confirmClearLogs, setConfirmClearLogs] = useState<boolean>(false);
-  const [quantImgError, setQuantImgError] = useState<boolean>(false);
 
   const showToast = (type: 'success' | 'error' | 'info', text: string) => {
     setToastMsg({ type, text });
@@ -759,9 +757,7 @@ export const AutoTraderView: React.FC<AutoTraderViewProps> = ({
             : 'sabaa-panel-gold'
         }`}
       >
-        <div className="grid grid-cols-1 xl:grid-cols-12 items-stretch">
-          {/* Primary Command & Action Zone */}
-          <div className="xl:col-span-8 p-5 sm:p-6 flex flex-col justify-between gap-5">
+        <div className="p-5 sm:p-6 flex flex-col justify-between gap-5">
             <div className="flex items-start gap-4">
               <div
                 className={`w-12 h-12 rounded-xl border flex items-center justify-center shrink-0 transition-colors ${
@@ -950,6 +946,18 @@ export const AutoTraderView: React.FC<AutoTraderViewProps> = ({
                   {isRTL ? 'المرفوضة:' : 'Rejected:'}{' '}
                   <strong className="text-rose-400">{status?.rejectedTradesCount ?? 0}</strong>
                 </span>
+                <span aria-hidden="true" className="text-white/20">·</span>
+                <span>
+                  {isRTL ? 'المبلغ:' : 'Stake:'}{' '}
+                  <strong className="text-amber-300">${baseAmount.toFixed(2)}</strong>
+                </span>
+                <span aria-hidden="true" className="text-white/20">·</span>
+                <span>
+                  PnL:{' '}
+                  <strong className={(status?.dailyPnL ?? 0) >= 0 ? 'text-emerald-400' : 'text-rose-400'}>
+                    {(status?.dailyPnL ?? 0) >= 0 ? '+' : ''}${status?.dailyPnL?.toFixed(2) ?? '0.00'}
+                  </strong>
+                </span>
               </div>
             </div>
 
@@ -973,38 +981,6 @@ export const AutoTraderView: React.FC<AutoTraderViewProps> = ({
                 </button>
               </div>
             )}
-          </div>
-
-          {/* Bespoke Architectural Hardware Showcase Panel */}
-          <div className="xl:col-span-4 relative min-h-[210px] xl:min-h-0 border-t xl:border-t-0 xl:border-s border-white/[0.08] bg-[#04060A] overflow-hidden">
-            {!quantImgError ? (
-              <img
-                src={sabaaQuantEngineImg}
-                alt={isRTL ? 'نواة المعالج الكمي للبوت الآلي' : 'Sabaa Quantitative Auto-Trader Hardware Core'}
-                referrerPolicy="no-referrer"
-                onError={() => setQuantImgError(true)}
-                className="w-full h-full object-cover opacity-90"
-              />
-            ) : (
-              <div className="w-full h-full flex flex-col items-center justify-center gap-2 bg-gradient-to-br from-[#0B111C] to-[#04060A] p-6">
-                <Cpu className="w-10 h-10 text-amber-400/80" />
-                <span className="text-xs font-mono text-amber-300/80">QUANT CORE ENGINE</span>
-              </div>
-            )}
-            <div className="absolute inset-0 bg-gradient-to-t from-[#04060A]/90 via-[#04060A]/30 to-transparent pointer-events-none" />
-            <div className="absolute bottom-3.5 inset-x-4 flex items-center justify-between gap-2 text-[11px] font-mono tabular-nums pointer-events-none">
-              <div className="px-2.5 py-1 rounded-lg bg-[#04060A]/80 border border-white/[0.1] backdrop-blur-sm text-slate-200">
-                <span className="text-slate-400">{isRTL ? 'المبلغ:' : 'Stake:'} </span>
-                <strong className="text-amber-300">${baseAmount.toFixed(2)}</strong>
-              </div>
-              <div className="px-2.5 py-1 rounded-lg bg-[#04060A]/80 border border-white/[0.1] backdrop-blur-sm text-slate-200">
-                <span className="text-slate-400">PnL: </span>
-                <strong className={(status?.dailyPnL ?? 0) >= 0 ? 'text-emerald-400' : 'text-rose-400'}>
-                  {(status?.dailyPnL ?? 0) >= 0 ? '+' : ''}${status?.dailyPnL?.toFixed(2) ?? '0.00'}
-                </strong>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
 

@@ -20,6 +20,7 @@ import {
 } from './PocketOptionSessionStore';
 import { DiagnosticsInfo } from '../types';
 import { safeFetchJson } from '../utils/safeFetch';
+import { parsePocketOptionTokenInput } from '../lib/pocketOptionTokenParser';
 
 export interface ConnectionResult {
   ok: boolean;
@@ -108,79 +109,31 @@ class PocketOptionConnectionServiceClass {
     rawToken: string,
     isDemo: boolean,
     explicitUid?: number | string | null,
-    endpoint = 'wss://api-eu.po.market/socket.io/?EIO=4&transport=websocket'
+    _endpoint = 'wss://api-eu.po.market/socket.io/?EIO=4&transport=websocket'
   ): CredentialAnalysis {
-    let raw = (rawToken || '').trim().replace(/^["'`]|["'`]$/g, '');
-    let cleanSession = raw;
-    let targetUid = 0;
-    let formatDetected = 'RAW_SESSION_TOKEN';
+    const parsed = parsePocketOptionTokenInput(rawToken, explicitUid);
+    const cleanSession = parsed.cleanSession;
+    const targetUid = parsed.detectedUid ?? 0;
+    const platform = parsed.detectedPlatform ?? 9;
     const validationErrors: string[] = [];
-
-    // 1. Detect if user pasted complete Socket.IO frame (e.g. from Chrome DevTools Network -> WS -> Messages)
-    if (raw.startsWith('42') || raw.startsWith('{') || raw.startsWith('[')) {
-      formatDetected = 'COMPLETE_SOCKET_IO_FRAME';
-      try {
-        const jsonStr = raw.startsWith('42') ? raw.slice(2) : raw;
-        const parsed = JSON.parse(jsonStr);
-        const data = Array.isArray(parsed) && parsed.length > 1 ? parsed[1] : parsed;
-        if (data && typeof data === 'object') {
-          if (data.session) {
-            cleanSession = String(data.session).trim().replace(/^["'`]|["'`]$/g, '');
-          }
-          if (data.uid !== undefined && data.uid !== null) {
-            const parsedNum = Number(data.uid);
-            if (!isNaN(parsedNum) && parsedNum > 0) targetUid = parsedNum;
-          }
-          if (data.isDemo !== undefined && (isDemo === undefined || isDemo === null)) {
-            isDemo = data.isDemo === 1 || data.isDemo === true;
-          }
-        }
-      } catch {
-        // Fallback to regex extraction if JSON parse fails
-        const sessionMatch = raw.match(/"session"\s*:\s*"([^"]+)"/);
-        if (sessionMatch) cleanSession = sessionMatch[1];
-        const uidMatch = raw.match(/"uid"\s*:\s*(\d+)/);
-        if (uidMatch) targetUid = Number(uidMatch[1]);
-      }
-    } else if (raw.includes('SSID=') || raw.includes('session=') || raw.includes('auth=') || raw.includes(';')) {
-      // 2. Detect cookie header or semicolon-delimited token
-      formatDetected = 'COOKIE_HEADER_STRING';
-      const match = raw.match(/(?:SSID|session|auth|PHPSESSID)=([^;\s]+)/i);
-      if (match) {
-        cleanSession = match[1].replace(/^["'`]|["'`]$/g, '').trim();
-      }
-    }
-
-    // Strip any residual prefix or trailing characters
-    cleanSession = cleanSession
-      .replace(/^(?:SSID|session|auth|PHPSESSID)=/i, '')
-      .replace(/[;\s]+$/, '')
-      .replace(/^["'`]|["'`]$/g, '')
-      .trim();
-
-    // Priority: explicit UI UID input overrides parsed UID
-    if (explicitUid !== undefined && explicitUid !== null && String(explicitUid).trim() !== '') {
-      const num = Number(explicitUid);
-      if (!isNaN(num) && num > 0) targetUid = num;
-    }
 
     if (!cleanSession || cleanSession.length < 8) {
       validationErrors.push('رمز الجلسة غير صالح أو مفقود (أقل من 8 أحرف).');
     }
 
-    const mode: AccountModeType = isDemo ? 'DEMO' : 'REAL';
-    const isDemoInt = isDemo ? 1 : 0;
+    const effectiveIsDemo = isDemo === true;
+    const mode: AccountModeType = effectiveIsDemo ? 'DEMO' : 'REAL';
+    const isDemoInt = effectiveIsDemo ? 1 : 0;
     const maskedSession = PocketOptionConnectionServiceClass.maskSecret(cleanSession);
 
-    // Canonical Socket.IO payload serialization check
-    const serializedFrame = `42["auth",{"session":"${maskedSession}","isDemo":${isDemoInt},"uid":${targetUid},"platform":2}]`;
+    const serializedFrame = `42["auth",{"session":"${maskedSession}","isDemo":${isDemoInt},"uid":${targetUid},"platform":${platform}}]`;
 
     return {
       cleanSession,
       targetUid,
       targetMode: mode,
-      isDemo,
-      formatDetected,
+      isDemo: effectiveIsDemo,
+      formatDetected: parsed.formatCode,
       serializedFrame,
       validationErrors,
     };

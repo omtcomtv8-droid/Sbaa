@@ -78,18 +78,31 @@ export interface ExtractedSsdMetadata {
 
 export function extractSsdMetadata(rawInput: string, explicitUid?: string | number | null): ExtractedSsdMetadata {
   let raw = (typeof rawInput === 'string' ? rawInput : '').trim();
-  if (
-    (raw.startsWith('"') && raw.endsWith('"')) ||
-    (raw.startsWith("'") && raw.endsWith("'"))
-  ) {
+  if (raw.startsWith('"') && raw.endsWith('"') && raw.length >= 2) {
+    try {
+      const unwrapped = JSON.parse(raw);
+      raw = typeof unwrapped === 'string' ? unwrapped.trim() : raw.slice(1, -1).trim();
+    } catch {
+      raw = raw.slice(1, -1).trim();
+    }
+  } else if (raw.startsWith("'") && raw.endsWith("'") && raw.length >= 2) {
     raw = raw.slice(1, -1).trim();
   }
-  if (raw.includes('\\"')) {
-    raw = raw.replace(/\\"/g, '"');
-  }
-  if (raw.includes('%22') || raw.includes('%5B') || raw.includes('%7B')) {
+
+  if (raw.includes('%22') || raw.includes('%5B') || raw.includes('%7B') || raw.includes('%3A')) {
     try {
-      raw = decodeURIComponent(raw);
+      raw = decodeURIComponent(raw).trim();
+    } catch {
+      // keep raw
+    }
+  }
+
+  if (/^(?:42)?\[\\?"auth\\?"/.test(raw) || /^\\?\{\\?"session/.test(raw)) {
+    try {
+      const candidate = raw.replace(/\\"/g, '"');
+      const testJson = candidate.startsWith('42') ? candidate.slice(2) : candidate;
+      JSON.parse(testJson.replace(/[\r\n]+/g, '').trim());
+      raw = candidate;
     } catch {
       // keep raw
     }
@@ -112,10 +125,10 @@ export function extractSsdMetadata(rawInput: string, explicitUid?: string | numb
     detectedMode = 'DEMO';
   }
 
-  const authFrameMatch = raw.match(/(?:42)?\[\s*"auth"\s*,\s*(\{[\s\S]*\})\s*\]/);
+  const authFrameMatch = raw.match(/(?:42\s*)?\[\s*"auth"\s*,\s*(\{[\s\S]*\})\s*\]/i);
   if (authFrameMatch && authFrameMatch[1]) {
     try {
-      const payload = JSON.parse(authFrameMatch[1]);
+      const payload = JSON.parse(authFrameMatch[1].replace(/[\r\n]+/g, '').trim());
       if (payload && typeof payload === 'object') {
         if (payload.session || payload.sessionToken) cleanSession = String(payload.session || payload.sessionToken).trim();
         if (payload.uid && !accountUid) accountUid = String(payload.uid);
@@ -123,12 +136,18 @@ export function extractSsdMetadata(rawInput: string, explicitUid?: string | numb
         if (payload.isDemo === 1 || payload.isDemo === '1' || payload.isDemo === true) detectedMode = 'DEMO';
       }
     } catch {
-      const sessMatch = authFrameMatch[1].match(/"session(?:Token)?"\s*:\s*"([^"]+)"/);
-      if (sessMatch && sessMatch[1]) cleanSession = sessMatch[1].trim();
+      const sessMatch = authFrameMatch[1].match(/"session(?:Token)?"\s*:\s*"((?:[^"\\]|\\.)+)"/i);
+      if (sessMatch && sessMatch[1]) {
+        try {
+          cleanSession = JSON.parse(`"${sessMatch[1]}"`).trim();
+        } catch {
+          cleanSession = sessMatch[1].replace(/\\"/g, '"').trim();
+        }
+      }
     }
   } else if (raw.startsWith('{') && raw.endsWith('}')) {
     try {
-      const obj = JSON.parse(raw);
+      const obj = JSON.parse(raw.replace(/[\r\n]+/g, '').trim());
       if (obj && typeof obj === 'object') {
         if (obj.session || obj.sessionToken) cleanSession = String(obj.session || obj.sessionToken).trim();
         if (obj.uid && !accountUid) accountUid = String(obj.uid);
@@ -136,10 +155,25 @@ export function extractSsdMetadata(rawInput: string, explicitUid?: string | numb
         if (obj.isDemo === 1 || obj.isDemo === '1' || obj.isDemo === true) detectedMode = 'DEMO';
       }
     } catch {
-      const sessMatch = raw.match(/"session(?:Token)?"\s*:\s*"([^"]+)"/);
-      if (sessMatch && sessMatch[1]) cleanSession = sessMatch[1].trim();
+      const sessMatch = raw.match(/"session(?:Token)?"\s*:\s*"((?:[^"\\]|\\.)+)"/i);
+      if (sessMatch && sessMatch[1]) {
+        try {
+          cleanSession = JSON.parse(`"${sessMatch[1]}"`).trim();
+        } catch {
+          cleanSession = sessMatch[1].replace(/\\"/g, '"').trim();
+        }
+      }
     }
-  } else if (raw.includes('SSID=') || raw.includes('session=') || raw.includes('auth=') || raw.includes('PHPSESSID=')) {
+  } else if (/"session(?:Token)?"\s*:\s*"/i.test(raw)) {
+    const sessMatch = raw.match(/"session(?:Token)?"\s*:\s*"((?:[^"\\]|\\.)+)"/i);
+    if (sessMatch && sessMatch[1]) {
+      try {
+        cleanSession = JSON.parse(`"${sessMatch[1]}"`).trim();
+      } catch {
+        cleanSession = sessMatch[1].replace(/\\"/g, '"').trim();
+      }
+    }
+  } else if (!/^a:\d+:\{[\s\S]*\}/.test(raw) && (raw.includes('SSID=') || raw.includes('session=') || raw.includes('auth=') || raw.includes('PHPSESSID='))) {
     const match = raw.match(/(?:SSID|po_session|session|auth|PHPSESSID)=([^;\s]+)/i);
     if (match && match[1]) {
       cleanSession = match[1].trim();
@@ -148,9 +182,18 @@ export function extractSsdMetadata(rawInput: string, explicitUid?: string | numb
 
   cleanSession = cleanSession
     .replace(/^(?:SSID|po_session|session|auth|PHPSESSID)=/i, '')
-    .replace(/[;\s]+$/, '')
-    .replace(/^["'`]|["'`]$/g, '')
     .trim();
+
+  if (
+    (cleanSession.startsWith('"') && cleanSession.endsWith('"')) ||
+    (cleanSession.startsWith("'") && cleanSession.endsWith("'"))
+  ) {
+    cleanSession = cleanSession.slice(1, -1).trim();
+  }
+
+  if (/^a:\d+:\{[\s\S]*\}/.test(cleanSession) && cleanSession.includes('\\"')) {
+    cleanSession = cleanSession.replace(/\\"/g, '"');
+  }
 
   if (explicitUid !== undefined && explicitUid !== null && String(explicitUid).trim() !== '') {
     accountUid = String(explicitUid).trim();

@@ -19,6 +19,7 @@ import {
 } from '../services/PocketOptionSessionStore';
 import { accountStore } from '../services/AccountStore';
 import { pocketOptionConnectionService } from '../services/PocketOptionConnectionService';
+import { parsePocketOptionTokenInput } from '../lib/pocketOptionTokenParser';
 
 interface GatewayOnboardingCardProps {
   diagnostics?: DiagnosticsInfo | null;
@@ -167,131 +168,20 @@ export const GatewayOnboardingCard: React.FC<GatewayOnboardingCardProps> = ({
   }, [forceHighlight, onClearHighlight]);
 
   const parsedPreview = useMemo(() => {
-    let input = sessionToken.trim();
-
-    if (
-      (input.startsWith('"') && input.endsWith('"')) ||
-      (input.startsWith("'") && input.endsWith("'"))
-    ) {
-      input = input.slice(1, -1).trim();
-    }
-
-    if (input.includes('\\"')) {
-      input = input.replace(/\\"/g, '"');
-    }
-
-    if (input.includes('%22') || input.includes('%5B') || input.includes('%7B')) {
-      try {
-        input = decodeURIComponent(input);
-      } catch {
-        // ignore
-      }
-    }
-
-    let detectedUid = uid ? parseInt(uid, 10) : null;
-    let payloadDetectedMode: 'DEMO' | 'REAL' | null = null;
-    let format = 'FORMAT A (مفتاح مباشر Raw Session)';
-
-    const uidMatch =
-      input.match(/"?(?:uid|user_id)"?\s*[:=]\s*"?(\d+)"?/i) ||
-      input.match(/(?:^|[;&,\s])(?:uid|user_id)\s*=\s*"?(\d+)"?/i);
-    if (uidMatch && uidMatch[1] && Number(uidMatch[1]) > 0 && !detectedUid) {
-      detectedUid = Number(uidMatch[1]);
-    }
-
-    if (/(?:^|[;&,\s"{])isDemo"?\s*[:=]\s*"?0"?/i.test(input) || /(?:^|[;&,\s"{])is_demo"?\s*[:=]\s*"?0"?/i.test(input)) {
-      payloadDetectedMode = 'REAL';
-    } else if (/(?:^|[;&,\s"{])isDemo"?\s*[:=]\s*"?1"?/i.test(input) || /(?:^|[;&,\s"{])is_demo"?\s*[:=]\s*"?1"?/i.test(input)) {
-      payloadDetectedMode = 'DEMO';
-    }
-
-    let cleanSession = input;
-
-    if (input.includes('session_id')) {
-      const phpMatch = input.match(/"session_id";s:\d+:"([^"]+)";/) || input.match(/session_id";s:\d+:"([a-zA-Z0-9_-]+)"/);
-      if (phpMatch && phpMatch[1]) {
-        cleanSession = phpMatch[1].trim();
-        format = 'FORMAT A (PHP Serialized)';
-      }
-    }
-
-    const authFrameMatch = input.match(/(?:42)?\[\s*"auth"\s*,\s*(\{[\s\S]*\})\s*\]/);
-    if (authFrameMatch && authFrameMatch[1]) {
-      format = 'FORMAT B (حزمة DevTools 42["auth", ...] كاملة)';
-      try {
-        const payload = JSON.parse(authFrameMatch[1]);
-        if (payload && typeof payload === 'object') {
-          if (payload.session || payload.sessionToken) cleanSession = payload.session || payload.sessionToken;
-          if (payload.uid && !detectedUid) detectedUid = Number(payload.uid);
-          if (payload.isDemo === 0 || payload.isDemo === '0' || payload.isDemo === false) payloadDetectedMode = 'REAL';
-          if (payload.isDemo === 1 || payload.isDemo === '1' || payload.isDemo === true) payloadDetectedMode = 'DEMO';
-        }
-      } catch {
-        const sessMatch = authFrameMatch[1].match(/"session(?:Token)?"\s*:\s*"([^"]+)"/);
-        if (sessMatch && sessMatch[1]) cleanSession = sessMatch[1];
-      }
-    } else if (input.startsWith('{') && input.endsWith('}')) {
-      format = 'FORMAT B (JSON Payload)';
-      try {
-        const obj = JSON.parse(input);
-        if (obj && typeof obj === 'object') {
-          if (obj.session || obj.sessionToken) cleanSession = obj.session || obj.sessionToken;
-          if (obj.uid && !detectedUid) detectedUid = Number(obj.uid);
-          if (obj.isDemo === 0 || obj.isDemo === '0' || obj.isDemo === false) payloadDetectedMode = 'REAL';
-          if (obj.isDemo === 1 || obj.isDemo === '1' || obj.isDemo === true) payloadDetectedMode = 'DEMO';
-        }
-      } catch {
-        const sessMatch = input.match(/"session(?:Token)?"\s*:\s*"([^"]+)"/);
-        if (sessMatch && sessMatch[1]) cleanSession = sessMatch[1];
-      }
-    } else {
-      const ssidMatch = input.match(/(?:^|[;\s])SSID\s*=\s*([^;]+)/i);
-      const sessionCookieMatch = input.match(/(?:^|[;\s])(?:po_session|session|session_id|remember_code)\s*=\s*([^;]+)/i);
-      const phpCookieMatch = input.match(/(?:^|[;\s])PHPSESSID\s*=\s*([^;]+)/i);
-
-      if (ssidMatch && ssidMatch[1]) {
-        cleanSession = ssidMatch[1].trim();
-      } else if (sessionCookieMatch && sessionCookieMatch[1]) {
-        cleanSession = sessionCookieMatch[1].trim();
-      } else if (phpCookieMatch && phpCookieMatch[1]) {
-        cleanSession = phpCookieMatch[1].trim();
-      }
-    }
-
-    if (
-      (cleanSession.startsWith('"') && cleanSession.endsWith('"')) ||
-      (cleanSession.startsWith("'") && cleanSession.endsWith("'"))
-    ) {
-      cleanSession = cleanSession.slice(1, -1).trim();
-    }
-
-    const maskedSession =
-      cleanSession.length > 8
-        ? `${cleanSession.slice(0, 4)}...${cleanSession.slice(-4)}`
-        : cleanSession || '(فارغ)';
-
-    const isTokenLongEnough = cleanSession.length >= 8;
-
-    let errorReason: string | null = null;
-    if (!cleanSession) {
-      errorReason = 'مفتاح الجلسة فارغ. يرجى إدخال رمز الجلسة أو حزمة DevTools.';
-    } else if (!isTokenLongEnough) {
-      errorReason = 'رمز الجلسة قصير جداً (أقل من 8 أحرف).';
-    }
-
-    const isValid = Boolean(isTokenLongEnough);
-    const isMismatch = Boolean(payloadDetectedMode && payloadDetectedMode !== mode);
+    const parsed = parsePocketOptionTokenInput(sessionToken, uid);
+    const isMismatch = Boolean(parsed.payloadDetectedMode && parsed.payloadDetectedMode !== mode);
 
     return {
-      cleanSession,
-      detectedUid,
-      payloadDetectedMode,
-      detectedMode: payloadDetectedMode || mode,
+      cleanSession: parsed.cleanSession,
+      detectedUid: parsed.detectedUid,
+      detectedPlatform: parsed.detectedPlatform,
+      payloadDetectedMode: parsed.payloadDetectedMode,
+      detectedMode: parsed.payloadDetectedMode || mode,
       isMismatch,
-      format,
-      maskedSession,
-      isValid,
-      errorReason,
+      format: parsed.formatLabel,
+      maskedSession: parsed.maskedSession,
+      isValid: parsed.isValid,
+      errorReason: parsed.errorReason,
     };
   }, [sessionToken, uid, mode]);
 
@@ -299,11 +189,9 @@ export const GatewayOnboardingCard: React.FC<GatewayOnboardingCardProps> = ({
     setSessionToken(val);
     setConnectError(null);
 
-    const uidMatch =
-      val.match(/"?(?:uid|user_id)"?\s*[:=]\s*"?(\d+)"?/i) ||
-      val.match(/(?:^|[;&,\s])(?:uid|user_id)\s*=\s*"?(\d+)"?/i);
-    if (uidMatch && uidMatch[1] && Number(uidMatch[1]) > 0 && !uid) {
-      setUid(uidMatch[1]);
+    const parsed = parsePocketOptionTokenInput(val, null);
+    if (parsed.detectedUid && parsed.detectedUid > 0) {
+      setUid(String(parsed.detectedUid));
     }
   };
 
@@ -316,6 +204,11 @@ export const GatewayOnboardingCard: React.FC<GatewayOnboardingCardProps> = ({
       return;
     }
 
+    if (parsedPreview.payloadDetectedMode === 'DEMO') {
+      setConnectError('تم إيقاف الحساب التجريبي (DEMO). يرجى استخدام جلسة الحساب الحقيقي فقط (isDemo=0).');
+      return;
+    }
+
     if (
       isSubmitting ||
       poSession.connectionState === 'PO_CONNECTION_CONNECTING' ||
@@ -324,7 +217,7 @@ export const GatewayOnboardingCard: React.FC<GatewayOnboardingCardProps> = ({
       return;
     }
 
-    const isDemoBool = true;
+    const isDemoBool = false;
     const parsedUidNum = uid ? parseInt(uid, 10) : parsedPreview.detectedUid || undefined;
 
     setIsSubmitting(true);
@@ -609,11 +502,15 @@ export const GatewayOnboardingCard: React.FC<GatewayOnboardingCardProps> = ({
             <div className="relative">
               <textarea
                 id="input-gateway-session"
-                rows={2}
+                rows={4}
+                dir="ltr"
+                spellCheck={false}
+                autoCapitalize="off"
+                autoCorrect="off"
                 value={sessionToken}
                 onChange={(e) => handleSessionChange(e.target.value)}
                 placeholder={tDynamic('الصق هنا رمز الجلسة أو حزمة الـ SSD: 42["auth",{"session":"...","isDemo":0,"uid":...}]')}
-                className={`w-full py-2.5 px-3 pl-8 rounded-xl sabaa-well text-xs font-mono text-slate-100 placeholder-slate-600 focus:outline-none focus:ring-1 resize-none ${
+                className={`w-full py-2.5 px-3 pl-8 rounded-xl sabaa-well text-xs font-mono text-left break-all text-slate-100 placeholder-slate-600 focus:outline-none focus:ring-1 resize-y ${
                   sessionToken && !parsedPreview.isValid
                     ? 'border-amber-500/50 focus:ring-amber-500'
                     : 'focus:border-amber-400/60 focus:ring-amber-400/25'
@@ -708,6 +605,7 @@ export const GatewayOnboardingCard: React.FC<GatewayOnboardingCardProps> = ({
               <input
                 id="input-gateway-uid"
                 type="number"
+                dir="ltr"
                 value={uid}
                 onChange={(e) => {
                   setUid(e.target.value);
@@ -718,7 +616,7 @@ export const GatewayOnboardingCard: React.FC<GatewayOnboardingCardProps> = ({
                     ? String(parsedPreview.detectedUid)
                     : tDynamic('مثال: 12345678 (أو اتركه فارغاً للاكتشاف التلقائي)')
                 }
-                className="w-full py-2 px-3 pl-8 rounded-xl sabaa-well focus:border-amber-400/60 focus:ring-amber-400/25 text-xs font-mono text-slate-100 placeholder-slate-600 focus:outline-none focus:ring-1"
+                className="w-full py-2 px-3 pl-8 rounded-xl sabaa-well focus:border-amber-400/60 focus:ring-amber-400/25 text-xs font-mono text-left text-slate-100 placeholder-slate-600 focus:outline-none focus:ring-1"
               />
               <User className="w-3.5 h-3.5 text-slate-500 absolute left-2.5 top-1/2 -translate-y-1/2" />
             </div>
@@ -727,13 +625,15 @@ export const GatewayOnboardingCard: React.FC<GatewayOnboardingCardProps> = ({
           {/* Live Token Breakdown */}
           {sessionToken && (
             <div className="p-3 rounded-xl sabaa-well text-[10px] font-mono space-y-1.5">
-              <div className="flex items-center justify-between text-slate-400">
+              <div className="flex items-center justify-between text-slate-400 gap-2">
                 <span>{tDynamic('البروتوكول والصيغة:')}</span>
-                <span className="text-amber-300 font-bold">{parsedPreview.format}</span>
+                <span className="text-amber-300 font-bold" dir="ltr">{parsedPreview.format}</span>
               </div>
-              <div className="flex items-center justify-between text-slate-400">
+              <div className="flex items-center justify-between text-slate-400 gap-2">
                 <span>{tDynamic('مفتاح الجلسة المقنع:')}</span>
-                <span className="text-slate-300">{parsedPreview.maskedSession}</span>
+                <span className="text-slate-300" dir="ltr">
+                  {parsedPreview.maskedSession} ({parsedPreview.cleanSession.length} chars)
+                </span>
               </div>
               <div className="flex items-center justify-between text-slate-400">
                 <span>{tDynamic('السيرفر المستهدف:')}</span>

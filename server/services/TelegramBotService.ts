@@ -121,7 +121,14 @@ export class TelegramBotService {
     return defaultCfg;
   }
 
-  public saveConfig(newConfig: Partial<TelegramConfig>): TelegramConfig {
+  public saveConfig(
+    newConfig: Partial<TelegramConfig>,
+    options?: { skipInit?: boolean }
+  ): TelegramConfig {
+    const tokenChanged =
+      newConfig.botToken !== undefined && newConfig.botToken !== this.config.botToken;
+    const wasEnabled = this.config.enabled;
+
     const merged: TelegramConfig = {
       ...this.config,
       ...newConfig,
@@ -148,11 +155,15 @@ export class TelegramBotService {
       console.warn('[TelegramBotService] Error saving config file:', e);
     }
 
-    if (this.config.enabled && this.config.botToken) {
-      this.initBotInfo();
-      this.startPolling();
-    } else {
-      this.stopPolling();
+    if (!options?.skipInit) {
+      if (this.config.enabled && this.config.botToken) {
+        if (tokenChanged || !wasEnabled || !this.config.botUsername) {
+          this.initBotInfo();
+        }
+        this.startPolling();
+      } else {
+        this.stopPolling();
+      }
     }
 
     return this.config;
@@ -177,10 +188,13 @@ export class TelegramBotService {
       if (data.ok && data.result) {
         this.config.botUsername = data.result.username || '';
         this.config.botFirstName = data.result.first_name || '';
-        this.saveConfig({
-          botUsername: this.config.botUsername,
-          botFirstName: this.config.botFirstName,
-        });
+        this.saveConfig(
+          {
+            botUsername: this.config.botUsername,
+            botFirstName: this.config.botFirstName,
+          },
+          { skipInit: true }
+        );
         console.log(`[TelegramBotService] Connected to Telegram Bot: @${this.config.botUsername} (${this.config.botFirstName})`);
         return { success: true, username: this.config.botUsername, firstName: this.config.botFirstName };
       } else {
@@ -268,18 +282,24 @@ export class TelegramBotService {
     if (res.success) {
       this.config.lastTestStatus = 'SUCCESS';
       this.config.lastTestMessage = 'Connection verified successfully!';
-      this.saveConfig({
-        lastTestStatus: 'SUCCESS',
-        lastTestMessage: 'Connection verified successfully!',
-      });
+      this.saveConfig(
+        {
+          lastTestStatus: 'SUCCESS',
+          lastTestMessage: 'Connection verified successfully!',
+        },
+        { skipInit: true }
+      );
       return { success: true, message: 'Test message delivered successfully to Telegram!' };
     } else {
       this.config.lastTestStatus = 'FAILED';
       this.config.lastTestMessage = res.error || 'Failed to send message';
-      this.saveConfig({
-        lastTestStatus: 'FAILED',
-        lastTestMessage: res.error || 'Failed to send message',
-      });
+      this.saveConfig(
+        {
+          lastTestStatus: 'FAILED',
+          lastTestMessage: res.error || 'Failed to send message',
+        },
+        { skipInit: true }
+      );
       return { success: false, message: res.error || 'Failed to send test message.' };
     }
   }
@@ -410,10 +430,13 @@ export class TelegramBotService {
     if (result.success) {
       this.config.lastBroadcastAt = new Date().toISOString();
       this.config.broadcastCount = (this.config.broadcastCount || 0) + 1;
-      this.saveConfig({
-        lastBroadcastAt: this.config.lastBroadcastAt,
-        broadcastCount: this.config.broadcastCount,
-      });
+      this.saveConfig(
+        {
+          lastBroadcastAt: this.config.lastBroadcastAt,
+          broadcastCount: this.config.broadcastCount,
+        },
+        { skipInit: true }
+      );
     }
 
     return result;
@@ -472,10 +495,13 @@ export class TelegramBotService {
     if (result.success) {
       this.config.lastBroadcastAt = new Date().toISOString();
       this.config.broadcastCount = (this.config.broadcastCount || 0) + 1;
-      this.saveConfig({
-        lastBroadcastAt: this.config.lastBroadcastAt,
-        broadcastCount: this.config.broadcastCount,
-      });
+      this.saveConfig(
+        {
+          lastBroadcastAt: this.config.lastBroadcastAt,
+          broadcastCount: this.config.broadcastCount,
+        },
+        { skipInit: true }
+      );
     }
 
     return result;
@@ -533,10 +559,13 @@ export class TelegramBotService {
     if (result.success) {
       this.config.lastBroadcastAt = new Date().toISOString();
       this.config.broadcastCount = (this.config.broadcastCount || 0) + 1;
-      this.saveConfig({
-        lastBroadcastAt: this.config.lastBroadcastAt,
-        broadcastCount: this.config.broadcastCount,
-      });
+      this.saveConfig(
+        {
+          lastBroadcastAt: this.config.lastBroadcastAt,
+          broadcastCount: this.config.broadcastCount,
+        },
+        { skipInit: true }
+      );
     }
 
     return result;

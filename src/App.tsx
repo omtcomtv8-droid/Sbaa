@@ -1163,7 +1163,6 @@ export default function App() {
 
         return { success: true, diagnostics: snap.diagnostics || undefined };
       } else {
-        setConfiguredSession(params.sessionToken);
         setIsReconnecting(false);
         return { success: false, error: res.errorMessage || 'فشل الاتصال بالبوابة' };
       }

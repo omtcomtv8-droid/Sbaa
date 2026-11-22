@@ -704,7 +704,11 @@ export class PocketOptionService {
         Origin: 'https://pocketoption.com',
       };
       if (activeCtx.sessionToken && activeCtx.sessionToken.length >= 8) {
-        wsHeaders['Cookie'] = `SSID=${activeCtx.sessionToken}; session=${activeCtx.sessionToken};`;
+        const cleanHeaderToken = activeCtx.sessionToken.replace(/[\r\n]+/g, '').trim();
+        const encodedCookie = /[;\s"']/.test(cleanHeaderToken)
+          ? encodeURIComponent(cleanHeaderToken)
+          : cleanHeaderToken;
+        wsHeaders['Cookie'] = `SSID=${encodedCookie}; session=${encodedCookie};`;
       }
 
       this.ws = new WebSocket(this.endpoint, {
@@ -1380,10 +1384,14 @@ export class PocketOptionService {
       norm === 'changeaccount' ||
       norm === 'change_account'
     ) {
-      if (this.subsystems.auth === 'pending') {
+      const isErrorPayload =
+        payload &&
+        typeof payload === 'object' &&
+        (Boolean(payload.error) || payload.status === false || payload.success === false);
+      if (this.subsystems.auth === 'pending' && !isErrorPayload) {
         this.handleAuthSuccess(payload, connId, generation);
       }
-      if (payload !== null && payload !== undefined) {
+      if (payload !== null && payload !== undefined && !isErrorPayload) {
         this.processUpdateBalance(payload, connId, generation);
       }
       return;
@@ -1448,16 +1456,12 @@ export class PocketOptionService {
 
     switch (eventName) {
       case 'updateStream':
-        if (this.subsystems.auth === 'pending') {
-          this.handleAuthSuccess(payload, connId, generation);
-        }
+        // Public stream quotes may arrive before auth resolves; never treat as auth proof
         this.processStreamUpdate(payload, connId, generation);
         break;
 
       case 'updateAssets':
-        if (this.subsystems.auth === 'pending') {
-          this.handleAuthSuccess(payload, connId, generation);
-        }
+        // Public asset catalog arrives immediately on Socket.IO connect before auth verification
         this.processAssetsUpdate(payload, connId, generation);
         break;
 
@@ -1469,9 +1473,6 @@ export class PocketOptionService {
       case 'history':
       case 'history_candles':
       case 'loadHistory':
-        if (this.subsystems.auth === 'pending') {
-          this.handleAuthSuccess(payload, connId, generation);
-        }
         this.processHistoricalCandles(payload, connId, generation);
         break;
 
