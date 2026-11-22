@@ -1,0 +1,15 @@
+{
+  "botToken": "6490228522:AAHRuyNt763LTfv4tNqnpII9ZbJRIk9nYfY",
+  "chatId": "6793310668",
+  "botUsername": "Sihsisbsi_BOT",
+  "enabled": true,
+  "autoBroadcastSignals": true,
+  "autoBroadcastTrades": true,
+  "displayTimezone": "UTC+3",
+  "minConfidence": 70,
+  "lastTestStatus": "SUCCESS",
+  "broadcastCount": 30,
+  "botFirstName": "POCKET OPTION Aİ SİGNAL",
+  "lastTestMessage": "Connection verified successfully!",
+  "lastBroadcastAt": "2026-11-17T22:34:26.285Z"
+}

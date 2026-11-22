@@ -1,0 +1,25 @@
+{
+  "patternsDetectedCount": 117,
+  "buySignalsCount": 0,
+  "sellSignalsCount": 0,
+  "waitDecisionsCount": 144,
+  "totalDemoTrades": 0,
+  "wonDemoTrades": 83,
+  "lostDemoTrades": 60,
+  "drawDemoTrades": 2,
+  "todayDemoPnL": 378.87999999999977,
+  "config": {
+    "enabled": true,
+    "autoDemoExecution": false,
+    "minScoreThreshold": 80,
+    "baseTradeAmount": 10,
+    "maxDailyLoss": 50,
+    "maxDailyProfitTarget": 100,
+    "maxConcurrentTrades": 1,
+    "cooldownCandles": 3,
+    "requireClosedCandle": true,
+    "allowRangingMarketTrades": false,
+    "minWickRatio": 0.5,
+    "atrMultiplierFilter": 2.5
+  }
+}

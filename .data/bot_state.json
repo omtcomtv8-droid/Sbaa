@@ -1,0 +1,31 @@
+{
+  "config": {
+    "strategyId": "auto",
+    "baseAmount": 100,
+    "maxAmount": 1000,
+    "stopLoss": 556,
+    "takeProfit": 599,
+    "asset": "EURUSD_otc",
+    "timeframe": 60,
+    "isDemo": false,
+    "enableMartingale": false,
+    "martingaleMultiplier": 2,
+    "maxMartingaleDepth": 2,
+    "tradesBeforeRest": 10,
+    "restMinMinutes": 15,
+    "restMaxMinutes": 45,
+    "maxConcurrentTrades": 1,
+    "cooldownBetweenTradesSec": 0,
+    "displayTimezone": "UTC+3"
+  },
+  "isRunning": false,
+  "isEmergencyStopped": false,
+  "dailyPnL": 0,
+  "totalTrades": 0,
+  "winningTrades": 0,
+  "losingTrades": 0,
+  "circuitBreakerTripped": false,
+  "circuitBreakerReason": "",
+  "statsDate": "2026-11-21",
+  "savedAt": "2026-11-21T21:43:46.551Z"
+}

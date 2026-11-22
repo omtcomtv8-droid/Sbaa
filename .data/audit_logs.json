@@ -1,0 +1,361 @@
+[
+  {
+    "id": "log_1795362198611_dgebya",
+    "timestamp": "2026-11-22T15:43:18.611Z",
+    "action": "CODES_GENERATED",
+    "actor": "verify_fix",
+    "details": {
+      "count": 1,
+      "durationHours": 24,
+      "maxDevices": 1,
+      "exactExpiration": null,
+      "boundUserEmail": null
+    },
+    "ipAddress": "internal"
+  },
+  {
+    "id": "log_1795282315076_tbk9tl",
+    "timestamp": "2026-11-21T17:31:55.076Z",
+    "action": "CODE_DELETED",
+    "actor": "admin",
+    "details": {
+      "code": "SABAA-F77E-D76B-819B",
+      "boundUser": null
+    },
+    "ipAddress": "admin_panel"
+  },
+  {
+    "id": "log_1795282315072_3u97ye",
+    "timestamp": "2026-11-21T17:31:55.072Z",
+    "action": "CODE_ENABLED",
+    "actor": "admin",
+    "details": {
+      "code": "SABAA-F77E-D76B-819B",
+      "boundUser": null,
+      "status": "UNUSED"
+    },
+    "ipAddress": "admin_panel"
+  },
+  {
+    "id": "log_1795282315064_o4i939",
+    "timestamp": "2026-11-21T17:31:55.064Z",
+    "action": "CODE_DISABLED",
+    "actor": "admin",
+    "details": {
+      "code": "SABAA-F77E-D76B-819B",
+      "boundUser": null,
+      "status": "DISABLED"
+    },
+    "ipAddress": "admin_panel"
+  },
+  {
+    "id": "log_1795282315057_zvntne",
+    "timestamp": "2026-11-21T17:31:55.057Z",
+    "action": "CODES_GENERATED",
+    "actor": "admin",
+    "details": {
+      "count": 1,
+      "durationHours": 24,
+      "maxDevices": 1,
+      "exactExpiration": null,
+      "boundUserEmail": null
+    },
+    "ipAddress": "internal"
+  },
+  {
+    "id": "log_1795282315050_jr3cp2",
+    "timestamp": "2026-11-21T17:31:55.050Z",
+    "action": "ADMIN_LOGIN_SUCCESS",
+    "actor": "admin",
+    "details": {
+      "mustChangePassword": false,
+      "ip": "127.0.0.1"
+    },
+    "ipAddress": "127.0.0.1"
+  },
+  {
+    "id": "log_1795282261436_j2f2mx",
+    "timestamp": "2026-11-21T17:31:01.436Z",
+    "action": "CODES_GENERATED",
+    "actor": "admin",
+    "details": {
+      "count": 1,
+      "durationHours": 24,
+      "maxDevices": 1,
+      "exactExpiration": null,
+      "boundUserEmail": null
+    },
+    "ipAddress": "internal"
+  },
+  {
+    "id": "log_1795282261423_bbmedj",
+    "timestamp": "2026-11-21T17:31:01.423Z",
+    "action": "ADMIN_LOGIN_SUCCESS",
+    "actor": "admin",
+    "details": {
+      "mustChangePassword": false,
+      "ip": "127.0.0.1"
+    },
+    "ipAddress": "127.0.0.1"
+  },
+  {
+    "id": "log_1795282230710_va0bhw",
+    "timestamp": "2026-11-21T17:30:30.710Z",
+    "action": "CODES_GENERATED",
+    "actor": "admin",
+    "details": {
+      "count": 1,
+      "durationHours": 24,
+      "maxDevices": 1,
+      "exactExpiration": null,
+      "boundUserEmail": null
+    },
+    "ipAddress": "internal"
+  },
+  {
+    "id": "log_1795282230695_gwajen",
+    "timestamp": "2026-11-21T17:30:30.695Z",
+    "action": "ADMIN_LOGIN_SUCCESS",
+    "actor": "admin",
+    "details": {
+      "mustChangePassword": false,
+      "ip": "127.0.0.1"
+    },
+    "ipAddress": "127.0.0.1"
+  },
+  {
+    "id": "log_1794955843868_dvfp2e",
+    "timestamp": "2026-11-17T22:50:43.868Z",
+    "action": "ADMIN_LOGIN_SUCCESS",
+    "actor": "admin",
+    "details": {
+      "mustChangePassword": false,
+      "ip": "127.0.0.1"
+    },
+    "ipAddress": "127.0.0.1"
+  },
+  {
+    "id": "log_1794955611722_6zlkmr",
+    "timestamp": "2026-11-17T22:46:51.722Z",
+    "action": "ADMIN_LOGIN_SUCCESS",
+    "actor": "admin",
+    "details": {
+      "mustChangePassword": false,
+      "ip": "78.190.151.163"
+    },
+    "ipAddress": "78.190.151.163"
+  },
+  {
+    "id": "log_1794955603338_723jk3",
+    "timestamp": "2026-11-17T22:46:43.338Z",
+    "action": "USER_ACTIVATION_SUCCESS",
+    "actor": "user:mrh494352@gmail.com",
+    "details": {
+      "code": "SBAA0000",
+      "isUnlimitedLifetime": true,
+      "role": "trader",
+      "durationHours": 0,
+      "expiresAt": null,
+      "activeDevices": 1,
+      "maxDevices": 999999,
+      "ip": "78.190.151.163"
+    },
+    "ipAddress": "78.190.151.163"
+  },
+  {
+    "id": "log_1794955553525_apreb4",
+    "timestamp": "2026-11-17T22:45:53.525Z",
+    "action": "ADMIN_LOGIN_SUCCESS",
+    "actor": "admin",
+    "details": {
+      "mustChangePassword": false,
+      "ip": "78.190.151.163"
+    },
+    "ipAddress": "78.190.151.163"
+  },
+  {
+    "id": "log_1794955471681_6d66tk",
+    "timestamp": "2026-11-17T22:44:31.681Z",
+    "action": "ADMIN_LOGIN_FAILED",
+    "actor": "admin",
+    "details": {
+      "reason": "Password mismatch",
+      "ip": "127.0.0.1"
+    },
+    "ipAddress": "127.0.0.1"
+  },
+  {
+    "id": "log_1794955471413_j0w2sk",
+    "timestamp": "2026-11-17T22:44:31.413Z",
+    "action": "ADMIN_LOGIN_FAILED",
+    "actor": "admin",
+    "details": {
+      "reason": "Password mismatch",
+      "ip": "127.0.0.1"
+    },
+    "ipAddress": "127.0.0.1"
+  },
+  {
+    "id": "log_1794955471152_iw955t",
+    "timestamp": "2026-11-17T22:44:31.152Z",
+    "action": "ADMIN_LOGIN_FAILED",
+    "actor": "admin",
+    "details": {
+      "reason": "Password mismatch",
+      "ip": "127.0.0.1"
+    },
+    "ipAddress": "127.0.0.1"
+  },
+  {
+    "id": "log_1794955470879_cjhemi",
+    "timestamp": "2026-11-17T22:44:30.879Z",
+    "action": "ADMIN_LOGIN_FAILED",
+    "actor": "admin",
+    "details": {
+      "reason": "Password mismatch",
+      "ip": "127.0.0.1"
+    },
+    "ipAddress": "127.0.0.1"
+  },
+  {
+    "id": "log_1794955470602_sx35ve",
+    "timestamp": "2026-11-17T22:44:30.602Z",
+    "action": "ADMIN_LOGIN_SUCCESS",
+    "actor": "admin",
+    "details": {
+      "mustChangePassword": false,
+      "ip": "127.0.0.1"
+    },
+    "ipAddress": "127.0.0.1"
+  },
+  {
+    "id": "log_1794955470497_xyubxc",
+    "timestamp": "2026-11-17T22:44:30.497Z",
+    "action": "ADMIN_LOGIN_SUCCESS",
+    "actor": "admin",
+    "details": {
+      "mustChangePassword": false,
+      "ip": "127.0.0.1"
+    },
+    "ipAddress": "127.0.0.1"
+  },
+  {
+    "id": "log_1794955470418_bc6j9x",
+    "timestamp": "2026-11-17T22:44:30.418Z",
+    "action": "ADMIN_LOGIN_SUCCESS",
+    "actor": "admin",
+    "details": {
+      "mustChangePassword": false,
+      "ip": "127.0.0.1"
+    },
+    "ipAddress": "127.0.0.1"
+  },
+  {
+    "id": "log_1794955470159_xy3x5e",
+    "timestamp": "2026-11-17T22:44:30.159Z",
+    "action": "ADMIN_LOGIN_SUCCESS",
+    "actor": "admin",
+    "details": {
+      "mustChangePassword": false,
+      "ip": "127.0.0.1"
+    },
+    "ipAddress": "127.0.0.1"
+  },
+  {
+    "id": "log_1794955469907_i7g0qf",
+    "timestamp": "2026-11-17T22:44:29.907Z",
+    "action": "ADMIN_LOGIN_SUCCESS",
+    "actor": "admin",
+    "details": {
+      "mustChangePassword": false,
+      "ip": "127.0.0.1"
+    },
+    "ipAddress": "127.0.0.1"
+  },
+  {
+    "id": "log_1794953730189_4pdywe",
+    "timestamp": "2026-11-17T22:15:30.189Z",
+    "action": "CODE_DELETED",
+    "actor": "admin",
+    "details": {
+      "code": "SABAA-F503-0E5D-57DB",
+      "boundUser": null
+    },
+    "ipAddress": "admin_panel"
+  },
+  {
+    "id": "log_1794953730185_rwkxjs",
+    "timestamp": "2026-11-17T22:15:30.185Z",
+    "action": "CODE_DELETED",
+    "actor": "admin",
+    "details": {
+      "code": "SABAA-2E7C-B9FE-50C9",
+      "boundUser": null
+    },
+    "ipAddress": "admin_panel"
+  },
+  {
+    "id": "log_1794953730180_elbnwx",
+    "timestamp": "2026-11-17T22:15:30.180Z",
+    "action": "CODE_DELETED",
+    "actor": "admin",
+    "details": {
+      "code": "SABAA-C3AB-3683-67D8",
+      "boundUser": null
+    },
+    "ipAddress": "admin_panel"
+  },
+  {
+    "id": "log_1794953730165_8s867e",
+    "timestamp": "2026-11-17T22:15:30.165Z",
+    "action": "CODES_GENERATED",
+    "actor": "admin",
+    "details": {
+      "count": 1,
+      "durationHours": 720,
+      "maxDevices": 1,
+      "exactExpiration": null,
+      "boundUserEmail": null
+    },
+    "ipAddress": "internal"
+  },
+  {
+    "id": "log_1794953730160_g3xb3p",
+    "timestamp": "2026-11-17T22:15:30.160Z",
+    "action": "CODES_GENERATED",
+    "actor": "admin",
+    "details": {
+      "count": 1,
+      "durationHours": 24,
+      "maxDevices": 1,
+      "exactExpiration": null,
+      "boundUserEmail": null
+    },
+    "ipAddress": "internal"
+  },
+  {
+    "id": "log_1794953730155_lrk2po",
+    "timestamp": "2026-11-17T22:15:30.155Z",
+    "action": "CODES_GENERATED",
+    "actor": "admin",
+    "details": {
+      "count": 1,
+      "durationHours": 1,
+      "maxDevices": 1,
+      "exactExpiration": null,
+      "boundUserEmail": null
+    },
+    "ipAddress": "internal"
+  },
+  {
+    "id": "log_1794953730147_w4nwmo",
+    "timestamp": "2026-11-17T22:15:30.147Z",
+    "action": "ADMIN_LOGIN_SUCCESS",
+    "actor": "admin",
+    "details": {
+      "mustChangePassword": false,
+      "ip": "127.0.0.1"
+    },
+    "ipAddress": "127.0.0.1"
+  }
+]

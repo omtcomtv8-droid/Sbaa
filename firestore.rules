@@ -1,0 +1,404 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global default deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isAuthenticated() {
+      return request.auth != null && request.auth.uid != null;
+    }
+
+    function isVerifiedEmail() {
+      return isAuthenticated()
+        && request.auth.token.email_verified == true
+        && request.auth.token.email is string
+        && request.auth.token.email.size() > 0;
+    }
+
+    function isAdmin() {
+      return isVerifiedEmail() && (
+        request.auth.token.email.lower() == 'zakurmahmut@gmail.com'
+        || exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && !id.matches('.*[/\\\\].*');
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && isValidId(userId) && request.auth.uid == userId;
+    }
+
+    function isNonEmptyString(val, maxLen) {
+      return val is string && val.size() > 0 && val.size() <= maxLen;
+    }
+
+    function isNullableString(val, maxLen) {
+      return val == null || (val is string && val.size() <= maxLen);
+    }
+
+    function isValidUserProfile(data, userId) {
+      return data.keys().hasAll(['uid', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly([
+          'uid', 'email', 'displayName', 'photoURL', 'role', 'status',
+          'activeActivationId', 'activeExpiresAt', 'activeCode',
+          'createdAt', 'updatedAt', 'lastLoginAt'
+        ])
+        && data.uid == userId
+        && isNonEmptyString(data.createdAt, 64)
+        && isNonEmptyString(data.updatedAt, 64)
+        && (!('email' in data) || isNullableString(data.email, 254))
+        && (!('displayName' in data) || isNullableString(data.displayName, 128))
+        && (!('photoURL' in data) || isNullableString(data.photoURL, 512))
+        && (!('role' in data) || data.role in ['trader', 'admin', 'guest'])
+        && (!('status' in data) || data.status in ['ACTIVE', 'DISABLED'])
+        && (!('activeActivationId' in data) || isNullableString(data.activeActivationId, 128))
+        && (!('activeExpiresAt' in data) || isNullableString(data.activeExpiresAt, 64))
+        && (!('activeCode' in data) || isNullableString(data.activeCode, 64))
+        && (!('lastLoginAt' in data) || isNullableString(data.lastLoginAt, 64));
+    }
+
+    function isValidActivationCode(data) {
+      return data.keys().hasAll(['id', 'code', 'status', 'durationHours', 'maxDevices', 'createdAt', 'createdBy'])
+        && data.keys().hasOnly([
+          'id', 'code', 'status', 'durationHours', 'durationLabel',
+          'maxDevices', 'activeDevicesCount', 'boundUserId', 'boundUserEmail',
+          'createdAt', 'createdBy', 'updatedAt', 'activatedAt', 'expiresAt',
+          'exactExpiration', 'lastUsageAt', 'revokedAt', 'revocationReason'
+        ])
+        && isNonEmptyString(data.id, 128)
+        && isNonEmptyString(data.code, 64)
+        && data.status in ['ACTIVE', 'UNUSED', 'EXPIRED', 'REVOKED', 'DISABLED']
+        && data.durationHours is number && data.durationHours >= 0 && data.durationHours <= 100000
+        && data.maxDevices is number && data.maxDevices >= 1 && data.maxDevices <= 1000000
+        && isNonEmptyString(data.createdAt, 64)
+        && isNonEmptyString(data.createdBy, 128)
+        && (!('durationLabel' in data) || isNullableString(data.durationLabel, 128))
+        && (!('activeDevicesCount' in data) || (data.activeDevicesCount is number && data.activeDevicesCount >= 0 && data.activeDevicesCount <= 1000000))
+        && (!('boundUserId' in data) || isNullableString(data.boundUserId, 128))
+        && (!('boundUserEmail' in data) || isNullableString(data.boundUserEmail, 254))
+        && (!('updatedAt' in data) || isNullableString(data.updatedAt, 64))
+        && (!('activatedAt' in data) || isNullableString(data.activatedAt, 64))
+        && (!('expiresAt' in data) || isNullableString(data.expiresAt, 64))
+        && (!('exactExpiration' in data) || isNullableString(data.exactExpiration, 64))
+        && (!('lastUsageAt' in data) || isNullableString(data.lastUsageAt, 64))
+        && (!('revokedAt' in data) || isNullableString(data.revokedAt, 64))
+        && (!('revocationReason' in data) || isNullableString(data.revocationReason, 256));
+    }
+
+    function isValidDeviceRecord(data) {
+      return data.keys().hasAll(['id', 'deviceId', 'userId', 'codeId', 'deviceToken', 'status', 'createdAt', 'lastActiveAt'])
+        && data.keys().hasOnly([
+          'id', 'deviceId', 'userId', 'userEmail', 'codeId', 'code',
+          'deviceToken', 'fingerprint', 'userAgent', 'ipAddress',
+          'os', 'browser', 'status', 'createdAt', 'lastActiveAt',
+          'revokedAt', 'revokedBy', 'revocationReason'
+        ])
+        && isNonEmptyString(data.id, 128)
+        && isNonEmptyString(data.deviceId, 128)
+        && isNonEmptyString(data.userId, 128)
+        && isNonEmptyString(data.codeId, 128)
+        && isNonEmptyString(data.deviceToken, 256)
+        && data.status in ['ACTIVE', 'REVOKED']
+        && isNonEmptyString(data.createdAt, 64)
+        && isNonEmptyString(data.lastActiveAt, 64)
+        && (!('userEmail' in data) || isNullableString(data.userEmail, 254))
+        && (!('code' in data) || isNullableString(data.code, 64))
+        && (!('fingerprint' in data) || isNullableString(data.fingerprint, 128))
+        && (!('userAgent' in data) || isNullableString(data.userAgent, 512))
+        && (!('ipAddress' in data) || isNullableString(data.ipAddress, 64))
+        && (!('os' in data) || isNullableString(data.os, 64))
+        && (!('browser' in data) || isNullableString(data.browser, 64))
+        && (!('revokedAt' in data) || isNullableString(data.revokedAt, 64))
+        && (!('revokedBy' in data) || isNullableString(data.revokedBy, 128))
+        && (!('revocationReason' in data) || isNullableString(data.revocationReason, 256));
+    }
+
+    function isValidSessionRecord(data) {
+      return data.keys().hasAll(['id', 'sessionToken', 'userId', 'codeId', 'expiresAt', 'status', 'createdAt', 'lastSeenAt'])
+        && data.keys().hasOnly([
+          'id', 'sessionToken', 'userId', 'userEmail', 'deviceToken',
+          'deviceId', 'codeId', 'expiresAt', 'status', 'createdAt', 'lastSeenAt'
+        ])
+        && isNonEmptyString(data.id, 256)
+        && isNonEmptyString(data.sessionToken, 256)
+        && isNonEmptyString(data.userId, 128)
+        && isNonEmptyString(data.codeId, 128)
+        && isNonEmptyString(data.expiresAt, 64)
+        && data.status in ['ACTIVE', 'EXPIRED', 'REVOKED']
+        && isNonEmptyString(data.createdAt, 64)
+        && isNonEmptyString(data.lastSeenAt, 64)
+        && (!('userEmail' in data) || isNullableString(data.userEmail, 254))
+        && (!('deviceToken' in data) || isNullableString(data.deviceToken, 256))
+        && (!('deviceId' in data) || isNullableString(data.deviceId, 128));
+    }
+
+    function isValidAuditLog(data) {
+      return data.keys().hasAll(['id', 'action', 'actor', 'timestamp'])
+        && data.keys().hasOnly(['id', 'action', 'actor', 'details', 'ipAddress', 'timestamp'])
+        && isNonEmptyString(data.id, 128)
+        && isNonEmptyString(data.action, 128)
+        && isNonEmptyString(data.actor, 256)
+        && isNonEmptyString(data.timestamp, 64)
+        && (!('details' in data) || data.details is map)
+        && (!('ipAddress' in data) || isNullableString(data.ipAddress, 64));
+    }
+
+    function isValidConnectionConfig(data, userId) {
+      return data.keys().hasAll(['userId', 'endpoint', 'isDemo', 'status', 'updatedAt'])
+        && data.keys().hasOnly([
+          'userId', 'endpoint', 'isDemo', 'accountUid', 'sessionTokenMasked',
+          'demoBalance', 'status', 'lastConnectedAt', 'lastError', 'updatedAt'
+        ])
+        && data.userId == userId
+        && isNonEmptyString(data.endpoint, 500)
+        && data.isDemo is bool
+        && data.status in ['connected', 'disconnected', 'connecting', 'failed']
+        && isNonEmptyString(data.updatedAt, 64)
+        && (!('accountUid' in data) || (data.accountUid is string && data.accountUid.size() <= 128))
+        && (!('sessionTokenMasked' in data) || (data.sessionTokenMasked is string && data.sessionTokenMasked.size() <= 64))
+        && (!('demoBalance' in data) || (data.demoBalance is number && data.demoBalance >= 0 && data.demoBalance <= 10000000))
+        && (!('lastConnectedAt' in data) || (data.lastConnectedAt is string && data.lastConnectedAt.size() <= 64))
+        && (!('lastError' in data) || (data.lastError is string && data.lastError.size() <= 500));
+    }
+
+    function isValidTradeOrder(data, userId) {
+      return data.keys().hasAll(['orderId', 'userId', 'symbol', 'direction', 'amount', 'status', 'timestamp'])
+        && data.keys().hasOnly([
+          'orderId', 'userId', 'symbol', 'direction', 'amount',
+          'entryPrice', 'stopLoss', 'takeProfit', 'timeframe', 'status', 'timestamp'
+        ])
+        && data.userId == userId
+        && isNonEmptyString(data.orderId, 128)
+        && isNonEmptyString(data.symbol, 64)
+        && data.direction in ['BUY', 'SELL']
+        && data.amount is number && data.amount > 0 && data.amount <= 100000
+        && data.status in ['PENDING', 'EXECUTED', 'CLOSED', 'REJECTED']
+        && isNonEmptyString(data.timestamp, 64)
+        && (!('entryPrice' in data) || data.entryPrice is number)
+        && (!('stopLoss' in data) || data.stopLoss is number)
+        && (!('takeProfit' in data) || data.takeProfit is number)
+        && (!('timeframe' in data) || (data.timeframe is number && data.timeframe > 0 && data.timeframe <= 86400));
+    }
+
+    function isValidRiskSettings(data, userId) {
+      return data.keys().hasAll(['userId', 'riskPerTrade', 'maxDailyLoss', 'updatedAt'])
+        && data.keys().hasOnly([
+          'userId', 'riskPerTrade', 'maxDailyLoss', 'maxConcurrentTrades',
+          'stopLossPips', 'takeProfitPips', 'strategy', 'selectedThreshold', 'updatedAt'
+        ])
+        && data.userId == userId
+        && data.riskPerTrade is number && data.riskPerTrade > 0 && data.riskPerTrade <= 100
+        && data.maxDailyLoss is number && data.maxDailyLoss > 0 && data.maxDailyLoss <= 100
+        && isNonEmptyString(data.updatedAt, 64)
+        && (!('maxConcurrentTrades' in data) || (data.maxConcurrentTrades is number && data.maxConcurrentTrades >= 1 && data.maxConcurrentTrades <= 100))
+        && (!('stopLossPips' in data) || data.stopLossPips is number)
+        && (!('takeProfitPips' in data) || data.takeProfitPips is number)
+        && (!('strategy' in data) || (data.strategy is string && data.strategy.size() <= 128))
+        && (!('selectedThreshold' in data) || (data.selectedThreshold is number && data.selectedThreshold >= 50 && data.selectedThreshold <= 100));
+    }
+
+    function isValidUserTrade(data, uid) {
+      return data.keys().hasAll(['id', 'userId', 'asset', 'action', 'amount', 'openTime', 'result', 'updatedAt'])
+        && data.keys().hasOnly([
+          'id', 'ticketId', 'userId', 'asset', 'accountMode', 'timeframe',
+          'strategyName', 'action', 'amount', 'openTime', 'closeTime',
+          'openPrice', 'entryPrice', 'closePrice', 'exitPrice', 'profit',
+          'payout', 'result', 'durationSec', 'reasons', 'confluenceScore', 'updatedAt'
+        ])
+        && data.userId == uid
+        && isNonEmptyString(data.id, 128)
+        && isNonEmptyString(data.asset, 64)
+        && data.action in ['call', 'put']
+        && data.amount is number && data.amount > 0 && data.amount <= 100000
+        && data.openTime is number
+        && data.result in ['WIN', 'LOSS', 'DRAW', 'PENDING', 'WON', 'LOST', 'FAILED']
+        && isNonEmptyString(data.updatedAt, 64)
+        && (!('ticketId' in data) || (data.ticketId is string && data.ticketId.size() <= 128))
+        && (!('accountMode' in data) || data.accountMode in ['REAL', 'DEMO'])
+        && (!('timeframe' in data) || (data.timeframe is number && data.timeframe > 0 && data.timeframe <= 86400))
+        && (!('strategyName' in data) || (data.strategyName is string && data.strategyName.size() <= 200))
+        && (!('closeTime' in data) || data.closeTime is number)
+        && (!('openPrice' in data) || data.openPrice is number)
+        && (!('entryPrice' in data) || data.entryPrice is number)
+        && (!('closePrice' in data) || data.closePrice is number)
+        && (!('exitPrice' in data) || data.exitPrice is number)
+        && (!('profit' in data) || data.profit is number)
+        && (!('payout' in data) || data.payout is number)
+        && (!('durationSec' in data) || data.durationSec is number)
+        && (!('reasons' in data) || (data.reasons is list && data.reasons.size() <= 20))
+        && (!('confluenceScore' in data) || data.confluenceScore is number);
+    }
+
+    // User Profile & Owned Subcollections
+    match /users/{userId} {
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if isAdmin();
+      allow create: if (isOwner(userId) && (!('role' in request.resource.data) || request.resource.data.role == 'trader'))
+        || isAdmin()
+        ? (isValidId(userId) && isValidUserProfile(request.resource.data, userId))
+        : false;
+      allow update: if (isAdmin() || (
+          isOwner(userId)
+          && (!('role' in request.resource.data) || request.resource.data.role == resource.data.role || request.resource.data.role == 'trader')
+          && (!('status' in request.resource.data) || request.resource.data.status == resource.data.status)
+        ))
+        && isValidUserProfile(request.resource.data, userId)
+        && request.resource.data.uid == resource.data.uid
+        && request.resource.data.createdAt == resource.data.createdAt;
+      allow delete: if false;
+
+      match /connections/{connectionId} {
+        allow get, list: if isOwner(userId);
+        allow create, update: if isOwner(userId)
+          && isValidId(connectionId)
+          && isValidConnectionConfig(request.resource.data, userId);
+        allow delete: if isOwner(userId);
+      }
+
+      match /orders/{orderId} {
+        allow get, list: if isOwner(userId);
+        allow create, update: if isOwner(userId)
+          && isValidId(orderId)
+          && isValidTradeOrder(request.resource.data, userId);
+        allow delete: if false;
+      }
+
+      match /settings/{settingId} {
+        allow get, list: if isOwner(userId);
+        allow create, update: if isOwner(userId)
+          && isValidId(settingId)
+          && isValidRiskSettings(request.resource.data, userId);
+        allow delete: if isOwner(userId);
+      }
+    }
+
+    // User Trades Collection (owned per userId)
+    match /userTrades/{tradeId} {
+      allow get, list: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow create: if isAuthenticated()
+        && isValidId(tradeId)
+        && tradeId.matches('^' + request.auth.uid + '_.*')
+        && isValidUserTrade(request.resource.data, request.auth.uid);
+      allow update: if isAuthenticated()
+        && resource.data.userId == request.auth.uid
+        && isValidUserTrade(request.resource.data, request.auth.uid)
+        && request.resource.data.userId == resource.data.userId
+        && request.resource.data.id == resource.data.id;
+      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+
+    // Admin Credential Hashes (strictly inaccessible to clients)
+    match /admins/{adminId} {
+      allow read, write: if false;
+    }
+
+    // Cross-Instance Activation License Registry
+    match /activation_codes/{codeId} {
+      allow get: if isAdmin() || (
+        isVerifiedEmail() && isValidId(codeId) && (
+          resource == null
+          || resource.data.boundUserId == request.auth.uid
+          || (
+            resource.data.status == 'UNUSED'
+            && (!('boundUserId' in resource.data) || resource.data.boundUserId == null)
+            && (!('boundUserEmail' in resource.data) || resource.data.boundUserEmail == null || resource.data.boundUserEmail.lower() == request.auth.token.email.lower())
+          )
+        )
+      );
+      allow list: if isAdmin();
+      allow create: if isAdmin()
+        && isValidId(codeId)
+        && isValidActivationCode(request.resource.data);
+      allow update: if isValidId(codeId)
+        && isValidActivationCode(request.resource.data)
+        && (
+          isAdmin()
+          || (
+            isVerifiedEmail()
+            && request.resource.data.id == resource.data.id
+            && request.resource.data.code == resource.data.code
+            && request.resource.data.durationHours == resource.data.durationHours
+            && request.resource.data.maxDevices == resource.data.maxDevices
+            && request.resource.data.createdAt == resource.data.createdAt
+            && request.resource.data.createdBy == resource.data.createdBy
+            && !(resource.data.status in ['EXPIRED', 'REVOKED', 'DISABLED'])
+            && (
+              (
+                resource.data.status == 'UNUSED'
+                && (!('activatedAt' in resource.data) || resource.data.activatedAt == null)
+                && (!('boundUserId' in resource.data) || resource.data.boundUserId == null)
+                && (!('boundUserEmail' in resource.data) || resource.data.boundUserEmail == null || resource.data.boundUserEmail.lower() == request.auth.token.email.lower())
+                && request.resource.data.status == 'ACTIVE'
+                && request.resource.data.boundUserId == request.auth.uid
+              )
+              ||
+              (
+                resource.data.status == 'ACTIVE'
+                && resource.data.boundUserId == request.auth.uid
+                && request.resource.data.boundUserId == resource.data.boundUserId
+                && request.resource.data.status in ['ACTIVE', 'EXPIRED']
+              )
+            )
+          )
+        );
+      allow delete: if isAdmin();
+    }
+
+    // Hardware Device Registrations
+    match /devices/{deviceId} {
+      allow get: if isAdmin() || (isAuthenticated() && (resource == null || resource.data.userId == request.auth.uid));
+      allow list: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+      allow create: if isValidId(deviceId)
+        && isValidDeviceRecord(request.resource.data)
+        && (isAdmin() || isOwner(request.resource.data.userId));
+      allow update: if isValidId(deviceId)
+        && isValidDeviceRecord(request.resource.data)
+        && (
+          isAdmin()
+          || (
+            isOwner(resource.data.userId)
+            && request.resource.data.userId == resource.data.userId
+            && request.resource.data.id == resource.data.id
+            && request.resource.data.status == resource.data.status
+          )
+        );
+      allow delete: if isAdmin();
+    }
+
+    // Active User Sessions
+    match /sessions/{sessionToken} {
+      allow get: if isAdmin() || (isAuthenticated() && (resource == null || resource.data.userId == request.auth.uid));
+      allow list: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+      allow create: if isValidId(sessionToken)
+        && isValidSessionRecord(request.resource.data)
+        && (isAdmin() || isOwner(request.resource.data.userId));
+      allow update: if isValidId(sessionToken)
+        && isValidSessionRecord(request.resource.data)
+        && (
+          isAdmin()
+          || (
+            isOwner(resource.data.userId)
+            && request.resource.data.userId == resource.data.userId
+            && request.resource.data.id == resource.data.id
+            && request.resource.data.codeId == resource.data.codeId
+            && !(resource.data.status in ['REVOKED', 'EXPIRED'])
+          )
+        );
+      allow delete: if isAdmin();
+    }
+
+    // Audit Logs
+    match /audit_logs/{logId} {
+      allow get, list: if isAdmin();
+      allow create: if isValidId(logId)
+        && isValidAuditLog(request.resource.data)
+        && (isAdmin() || isVerifiedEmail());
+      allow update, delete: if false;
+    }
+  }
+}

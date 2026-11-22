@@ -1,0 +1,30 @@
+{
+  "adm_e388ebd87853f98cd33d17e16c771a8a0482c91694b6f21098234d41a7521891": {
+    "token": "adm_e388ebd87853f98cd33d17e16c771a8a0482c91694b6f21098234d41a7521891",
+    "username": "admin",
+    "expiresAt": 1795311030694,
+    "mustChangePassword": false,
+    "createdAt": "2026-11-21T17:30:30.694Z"
+  },
+  "adm_59bcca0923515f23fdac5969956c77284e48a3e0ccc356d52e10ffad646e0dac": {
+    "token": "adm_59bcca0923515f23fdac5969956c77284e48a3e0ccc356d52e10ffad646e0dac",
+    "username": "admin",
+    "expiresAt": 1795311061423,
+    "mustChangePassword": false,
+    "createdAt": "2026-11-21T17:31:01.423Z"
+  },
+  "adm_152c5118c1553b14084b96b3a661acd2aa6f9c843f3da8c0b6759b08dda30d52": {
+    "token": "adm_152c5118c1553b14084b96b3a661acd2aa6f9c843f3da8c0b6759b08dda30d52",
+    "username": "admin",
+    "expiresAt": 1795311115049,
+    "mustChangePassword": false,
+    "createdAt": "2026-11-21T17:31:55.049Z"
+  },
+  "adm_d2aa6710b0433e60784d8507b2309e628b6174388ed3c9a451f4fbf458c2c3e6": {
+    "token": "adm_d2aa6710b0433e60784d8507b2309e628b6174388ed3c9a451f4fbf458c2c3e6",
+    "username": "admin",
+    "expiresAt": 1795311157366,
+    "mustChangePassword": false,
+    "createdAt": "2026-11-21T17:32:37.366Z"
+  }
+}
